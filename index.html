@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <!-- Leaflet -->
@@ -30,7 +29,7 @@
   <div id="map"></div>
 
   <script>
-    // ================= FIREBASE CONFIG =================
+    /* ================= FIREBASE CONFIG ================= */
     const firebaseConfig = {
       apiKey: "AIzaSyBZlWlk6crlhDU-QqdgfFkVZFjRE41Clbw",
       authDomain: "tracking-gps-bike.firebaseapp.com",
@@ -44,23 +43,25 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // ================= MAP INIT =================
-    let map = L.map("map").setView([0, 0], 2);
+    /* ================= MAP INIT ================= */
+    const map = L.map("map").setView([0, 0], 2);
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       attribution: "© OpenStreetMap"
     }).addTo(map);
 
-    let marker = L.marker([0, 0]).addTo(map);
+    const marker = L.marker([0, 0]).addTo(map);
 
-    // ================= FIREBASE LISTENER =================
-    db.ref("location").on("value", (snapshot) => {
+    /* ================= FIREBASE REALTIME LISTENER ================= */
+    db.ref("/").on("value", (snapshot) => {
       const data = snapshot.val();
-      if (!data) return;
+      if (!data || !data.lat || !data.lng) return;
 
       const lat = data.lat;
       const lng = data.lng;
+
+      console.log("Update GPS:", lat, lng);
 
       marker.setLatLng([lat, lng]);
       map.setView([lat, lng], 18);
