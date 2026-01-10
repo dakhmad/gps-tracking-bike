@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>GPS Tracking Sepeda</title>
+  <meta charset="utf-8">
+  <style>
+    #map {
+      height: 100vh;
+      width: 100%;
+    }
+  </style>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <!-- Google Maps -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY"></script>
+</head>
+<body>
+
+<div id="map"></div>
+
+<script>
+  // Firebase Config
+  const firebaseConfig = {
+    apiKey: "AIzaSyBZlWlk6crlhDU-QqdgfFkVZFjRE41Clbw",
+    authDomain: "tracking-gps-bike.firebaseapp.com",
+    databaseURL: "https://tracking-gps-bike-default-rtdb.firebaseio.com",
+    projectId: "tracking-gps-bike",
+    storageBucket: "tracking-gps-bike.firebasestorage.app",
+    messagingSenderId: "507860334758",
+    appId: "1:507860334758:web:7bf422a0544c8400ca1c67"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  let map, marker;
+
+  function initMap(lat = 0, lng = 0) {
+    map = new google.maps.Map(document.getElementById("map"), {
+      zoom: 15,
+      center: { lat, lng }
+    });
+
+    marker = new google.maps.Marker({
+      position: { lat, lng },
+      map: map,
+      title: "Sepeda"
+    });
+  }
+
+  initMap();
+
+  db.ref("location").on("value", (snapshot) => {
+    const data = snapshot.val();
+    if (!data) return;
+
+    const pos = { lat: data.lat, lng: data.lng };
+    marker.setPosition(pos);
+    map.setCenter(pos);
+  });
+</script>
+
+</body>
+</html>
