@@ -2,70 +2,111 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <title>Bike Tracker Login</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Leaflet -->
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.8.0/dist/leaflet.css"
-  />
-  <script src="https://unpkg.com/leaflet@1.8.0/dist/leaflet.js"></script>
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-
-  <style>
-    #map {
-      height: 100vh;
-      width: 100%;
-    }
-  </style>
-
-  <title>GPS Tracking Sepeda</title>
-</head>
-
-<body>
-  <div id="map"></div>
-
-  <script>
-    /* ================= FIREBASE CONFIG ================= */
     const firebaseConfig = {
-      apiKey: "AIzaSyBZlWlk6crlhDU-QqdgfFkVZFjRE41Clbw",
-      authDomain: "tracking-gps-bike.firebaseapp.com",
-      databaseURL: "https://tracking-gps-bike-default-rtdb.firebaseio.com",
-      projectId: "tracking-gps-bike",
-      storageBucket: "tracking-gps-bike.firebasestorage.app",
-      messagingSenderId: "507860334758",
-      appId: "1:507860334758:web:7bf422a0544c8400ca1c67"
+        apiKey: "AIzaSyADeh3RG2LxSg3pBZsAl8ZE9KdP087jrlM",
+        authDomain: "iot-bike-tracking-gps.firebaseapp.com",
+        databaseURL: "https://iot-bike-tracking-gps-default-rtdb.firebaseio.com",
+        projectId: "iot-bike-tracking-gps",
+        storageBucket: "iot-bike-tracking-gps.firebasestorage.app",
+        messagingSenderId: "201969266214",
+        appId: "1:201969266214:web:fcb427a0345582826bc0e7"
     };
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
 
-    /* ================= MAP INIT ================= */
-    const map = L.map("map").setView([0, 0], 2);
+    window.login = function () {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const error = document.getElementById('error');
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: "© OpenStreetMap"
-    }).addTo(map);
+      signInWithEmailAndPassword(auth, email, password)
+        .then(() => {
+          window.location.href = 'dashboard.html';
+        })
+        .catch((err) => {
+          error.innerText = err.message;
+        });
+    };
 
-    const marker = L.marker([0, 0]).addTo(map);
-
-    /* ================= FIREBASE REALTIME LISTENER ================= */
-    db.ref("/").on("value", (snapshot) => {
-      const data = snapshot.val();
-      if (!data || !data.lat || !data.lng) return;
-
-      const lat = data.lat;
-      const lng = data.lng;
-
-      console.log("Update GPS:", lat, lng);
-
-      marker.setLatLng([lat, lng]);
-      map.setView([lat, lng], 18);
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        window.location.href = 'dashboard.html';
+      }
     });
   </script>
+
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #1e3c72, #2a5298);
+      font-family: Arial, sans-serif;
+    }
+
+    .login-box {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      width: 320px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    .login-box h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #1e3c72;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      background: #1e3c72;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #16325c;
+    }
+
+    .error {
+      color: red;
+      font-size: 12px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-box">
+    <h2>Bike Tracker</h2>
+    <input type="email" id="email" placeholder="Email" />
+    <input type="password" id="password" placeholder="Password" />
+    <button onclick="login()">Login</button>
+    <p id="error" class="error"></p>
+  </div>
 </body>
 </html>
