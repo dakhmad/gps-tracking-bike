@@ -56,6 +56,13 @@
             active: false,
             finishedAt: now
           });
+
+          // TRIGGER BUZZER TIMER MODE
+          await set(ref(db, `bikes/${id}/buzzer`), {
+            active: true,
+            mode: "timer",
+            timer_end: Date.now()
+          });
           return;
         }
 
@@ -130,26 +137,45 @@
           });
         };
 
-        const buzzerBtn = document.createElement('button');
-        buzzerBtn.className = 'btn buzzer';
-        buzzerBtn.innerText = 'BUZZER';
-        buzzerBtn.onclick = async () => {
-          buzzerBtn.classList.add('active');
-          await update(ref(db, `bikes/${id}/buzzer`), {
-            active: true,
-            mode: 'pulse'
-          });
+        /* ===== BUZZER SWITCH (WARNING MODE) ===== */
+        const buzzerWrap = document.createElement('div');
+        buzzerWrap.className = 'buzzer-wrap';
 
-          setTimeout(async () => {
-            buzzerBtn.classList.remove('active');
-            await update(ref(db, `bikes/${id}/buzzer`), {
+        const buzzerLabel = document.createElement('label');
+        buzzerLabel.innerText = 'Buzzer Warning';
+
+        const buzzerSwitch = document.createElement('input');
+        buzzerSwitch.type = 'checkbox';
+
+        // sync state from Firebase
+        buzzerSwitch.checked =
+          bike.buzzer?.active && bike.buzzer?.mode === 'warning';
+
+        buzzerSwitch.onchange = async () => {
+          if (buzzerSwitch.checked) {
+            await set(ref(db, `bikes/${id}/buzzer`), {
+              active: true,
+              mode: 'warning'
+            });
+          } else {
+            await set(ref(db, `bikes/${id}/buzzer`), {
               active: false,
               mode: 'off'
             });
-          }, 2000);
+          }
         };
 
-        card.append(title, timer, input, setBtn, resetBtn, buzzerBtn);
+        buzzerWrap.append(buzzerLabel, buzzerSwitch);
+
+        card.append(
+          title,
+          timer,
+          input,
+          setBtn,
+          resetBtn,
+          buzzerWrap
+        );
+
         list.appendChild(card);
       });
     });
@@ -189,8 +215,17 @@
 
     .set { background:#2563eb; color:white; }
     .reset { background:#9ca3af; }
-    .buzzer { background:#f59e0b; color:white; }
-    .buzzer.active { background:#dc2626; }
+
+    .buzzer-wrap {
+      margin-top:10px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      background:#fef3c7;
+      padding:6px 10px;
+      border-radius:8px;
+      font-weight:bold;
+    }
   </style>
 </head>
 
