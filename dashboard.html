@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Bike Tracker Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getDatabase, ref, onValue, set, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyADeh3RG2LxSg3pBZsAl8ZE9KdP087jrlM",
+      authDomain: "iot-bike-tracking-gps.firebaseapp.com",
+      databaseURL: "https://iot-bike-tracking-gps-default-rtdb.firebaseio.com",
+      projectId: "iot-bike-tracking-gps",
+      storageBucket: "iot-bike-tracking-gps.firebasestorage.app",
+      messagingSenderId: "201969266214",
+      appId: "1:201969266214:web:fcb427a0345582826bc0e7"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    onAuthStateChanged(auth, user => {
+      if (!user) window.location.href = 'index.html';
+    });
+
+    window.logout = () => signOut(auth);
+
+    /* MAP */
+    const map = L.map('map').setView([-6.9198, 106.9268], 18);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    const markers = {};
+    const countdowns = {};
+
+    function runCountdown(id, timer, label) {
+      if (!timer?.active) return;
+      if (countdowns[id]) clearInterval(countdowns[id]);
+
+      countdowns[id] = setInterval(async () => {
+        const now = Math.floor(Date.now() / 1000);
+        const remain = timer.endAt - now;
+
+        if (remain <= 0) {
+          label.innerText = "00:00";
+          clearInterval(countdowns[id]);
+          await update(ref(db, `bikes/${id}/timer`), {
+            active: false,
+            finishedAt: now
+          });
+          return;
+        }
+
+        label.innerText =
+          String(Math.floor(remain / 60)).padStart(2, '0') +
+          ':' +
+          String(remain % 60).padStart(2, '0');
+      }, 1000);
+    }
+
+    onValue(ref(db, 'bikes'), snap => {
+      const bikes = snap.val();
+      const list = document.getElementById('bikeList');
+      list.innerHTML = '';
+
+      if (!bikes) return;
+
+      Object.entries(bikes).forEach(([id, bike]) => {
+        if (!bike.bike_active || !bike.location) return;
+
+        const { lat, lng } = bike.location;
+        if (!markers[id]) {
+          markers[id] = L.marker([lat, lng]).addTo(map).bindPopup(id);
+        } else {
+          markers[id].setLatLng([lat, lng]);
+        }
+
+        const card = document.createElement('div');
+        card.className = 'bike-card';
+
+        const title = document.createElement('h3');
+        title.innerText = id;
+
+        const timer = document.createElement('div');
+        timer.className = 'timer';
+        timer.innerText = '--:--';
+
+        if (bike.timer?.active) runCountdown(id, bike.timer, timer);
+
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.placeholder = 'Timer (menit)';
+
+        const setBtn = document.createElement('button');
+        setBtn.className = 'btn set';
+        setBtn.innerText = 'Set Timer';
+        setBtn.onclick = async () => {
+          const m = Number(input.value);
+          if (!m) return;
+          const now = Math.floor(Date.now() / 1000);
+          await set(ref(db, `bikes/${id}/timer`), {
+            active: true,
+            startAt: now,
+            endAt: now + m * 60,
+            duration: m * 60,
+            finishedAt: null
+          });
+        };
+
+        const resetBtn = document.createElement('button');
+        resetBtn.className = 'btn reset';
+        resetBtn.innerText = 'Reset Timer';
+        resetBtn.onclick = async () => {
+          clearInterval(countdowns[id]);
+          timer.innerText = '--:--';
+          await update(ref(db, `bikes/${id}/timer`), {
+            active: false,
+            startAt: null,
+            endAt: null,
+            duration: 0,
+            finishedAt: null
+          });
+        };
+
+        const buzzerBtn = document.createElement('button');
+        buzzerBtn.className = 'btn buzzer';
+        buzzerBtn.innerText = 'BUZZER';
+        buzzerBtn.onclick = async () => {
+          buzzerBtn.classList.add('active');
+          await update(ref(db, `bikes/${id}/buzzer`), {
+            active: true,
+            mode: 'pulse'
+          });
+
+          setTimeout(async () => {
+            buzzerBtn.classList.remove('active');
+            await update(ref(db, `bikes/${id}/buzzer`), {
+              active: false,
+              mode: 'off'
+            });
+          }, 2000);
+        };
+
+        card.append(title, timer, input, setBtn, resetBtn, buzzerBtn);
+        list.appendChild(card);
+      });
+    });
+  </script>
+
+  <style>
+    body { margin:0; font-family:Arial,sans-serif; background:#f4f6f9; }
+    header { background:#1e3c72; color:white; padding:12px 20px; display:flex; justify-content:space-between; }
+    header button { background:white; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; }
+
+    .container { padding:15px; }
+    #map { height:280px; border-radius:12px; margin-bottom:15px; }
+
+    .bike-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:14px; }
+
+    .bike-card {
+      background:white;
+      padding:14px;
+      border-radius:12px;
+      box-shadow:0 6px 12px rgba(0,0,0,.1);
+      text-align:center;
+    }
+
+    .bike-card h3 { margin:0 0 8px; }
+    .timer { font-size:22px; font-weight:bold; margin:8px 0; }
+
+    input { width:100%; padding:6px; margin-bottom:6px; }
+
+    .btn {
+      width:100%;
+      padding:8px;
+      margin-top:6px;
+      border:none;
+      border-radius:6px;
+      cursor:pointer;
+    }
+
+    .set { background:#2563eb; color:white; }
+    .reset { background:#9ca3af; }
+    .buzzer { background:#f59e0b; color:white; }
+    .buzzer.active { background:#dc2626; }
+  </style>
+</head>
+
+<body>
+<header>
+  <strong>Bike Tracker</strong>
+  <button onclick="logout()">Logout</button>
+</header>
+
+<div class="container">
+  <div id="map"></div>
+  <div class="bike-grid" id="bikeList"></div>
+</div>
+</body>
+</html>
