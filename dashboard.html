@@ -5,7 +5,7 @@
   <title>Bike Tracker Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Leaflet -->
+  <link rel="icon" type="image/png" href="icon.png">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -55,13 +55,6 @@
           await update(ref(db, `bikes/${id}/timer`), {
             active: false,
             finishedAt: now
-          });
-
-          // TRIGGER BUZZER TIMER MODE
-          await set(ref(db, `bikes/${id}/buzzer`), {
-            active: true,
-            mode: "timer",
-            timer_end: Date.now()
           });
           return;
         }
@@ -137,45 +130,57 @@
           });
         };
 
-        /* ===== BUZZER SWITCH (WARNING MODE) ===== */
-        const buzzerWrap = document.createElement('div');
-        buzzerWrap.className = 'buzzer-wrap';
+        // Buzzer Switch
+        const switchWrapper = document.createElement('div');
+        switchWrapper.className = 'switch-wrapper';
 
-        const buzzerLabel = document.createElement('label');
-        buzzerLabel.innerText = 'Buzzer Warning';
+        const switchLabelText = document.createElement('span');
+        switchLabelText.innerText = 'Buzzer';
+        
+        const labelSwitch = document.createElement('label');
+        labelSwitch.className = 'switch';
 
-        const buzzerSwitch = document.createElement('input');
-        buzzerSwitch.type = 'checkbox';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        
+        // Cek status awal (opsional, tapi bagus agar sinkron)
+        if(bike.buzzer && bike.buzzer.active) {
+            checkbox.checked = true;
+        }
 
-        // sync state from Firebase
-        buzzerSwitch.checked =
-          bike.buzzer?.active && bike.buzzer?.mode === 'warning';
+        const slider = document.createElement('span');
+        slider.className = 'slider';
 
-        buzzerSwitch.onchange = async () => {
-          if (buzzerSwitch.checked) {
-            await set(ref(db, `bikes/${id}/buzzer`), {
+        checkbox.onchange = async () => {
+          if (checkbox.checked) {
+            // Jika di-ON-kan
+            await update(ref(db, `bikes/${id}/buzzer`), {
               active: true,
-              mode: 'warning'
+              mode: 'pulse'
             });
+
+            // Matikan otomatis setelah 2 detik (Animasi switch kembali off)
+            setTimeout(async () => {
+              checkbox.checked = false; 
+              await update(ref(db, `bikes/${id}/buzzer`), {
+                active: false,
+                mode: 'off'
+              });
+            }, 2000);
           } else {
-            await set(ref(db, `bikes/${id}/buzzer`), {
+            // Jika dimatikan manual oleh user sebelum 2 detik
+            await update(ref(db, `bikes/${id}/buzzer`), {
               active: false,
               mode: 'off'
             });
           }
         };
 
-        buzzerWrap.append(buzzerLabel, buzzerSwitch);
+        labelSwitch.append(checkbox, slider);
+        switchWrapper.append(switchLabelText, labelSwitch);
+        /* --- END MODIFIKASI --- */
 
-        card.append(
-          title,
-          timer,
-          input,
-          setBtn,
-          resetBtn,
-          buzzerWrap
-        );
-
+        card.append(title, timer, input, setBtn, resetBtn, switchWrapper);
         list.appendChild(card);
       });
     });
@@ -202,7 +207,7 @@
     .bike-card h3 { margin:0 0 8px; }
     .timer { font-size:22px; font-weight:bold; margin:8px 0; }
 
-    input { width:100%; padding:6px; margin-bottom:6px; }
+    input[type="number"] { width:100%; padding:6px; margin-bottom:6px; box-sizing: border-box; }
 
     .btn {
       width:100%;
@@ -216,16 +221,56 @@
     .set { background:#2563eb; color:white; }
     .reset { background:#9ca3af; }
 
-    .buzzer-wrap {
-      margin-top:10px;
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      background:#fef3c7;
-      padding:6px 10px;
-      border-radius:8px;
-      font-weight:bold;
+    /* --- STYLE BARU UNTUK SWITCH --- */
+    .switch-wrapper {
+        margin-top: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #ebebeb;
+        padding: 8px;
+        border-radius: 8px;
     }
+    .switch-wrapper span { font-size: 14px; font-weight: bold; color: #333; }
+
+    /* The Switch Box */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 46px;
+      height: 24px;
+    }
+
+    /* Hide default HTML checkbox */
+    .switch input { opacity: 0; width: 0; height: 0; }
+
+    /* The Slider */
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 34px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    /* Warna saat ON (Merah Warning) */
+    input:checked + .slider { background-color: #dc2626; }
+
+    /* Posisi bulatan saat ON */
+    input:checked + .slider:before { transform: translateX(22px); }
   </style>
 </head>
 
